@@ -23,7 +23,7 @@ const App = (props) => {
   return (
     <div className={classes.wrapper}>
       {!isAuth && page === "auth" && <AuthPage/>}
-      { page === "home" && <HomePage/>}
+      {  <HomePage/>}
     </div>
   );
 };
