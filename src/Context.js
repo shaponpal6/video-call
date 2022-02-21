@@ -1,6 +1,28 @@
 import React, { createContext, useState, useRef, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import Peer from 'simple-peer';
+import {
+  getAuth,
+  onAuthStateChanged
+} from "firebase/auth";
+
+import {
+  getCurrentUser,
+  signInAnonymouslyFn,
+  createUserWithEmailAndPasswordFn,
+  signInWithEmailAndPasswordFn,
+  onAuthStateChangedFn,
+  signOutFn,
+  addChatUser,
+  fetchVisitorsList,
+  fetchVisitorsChat,
+  fetchVisitorsListListener,
+  fetchVisitorsChatListener,
+  createConversation,
+  replayMessageWithFirebase
+} from './firebase/firebaseHelper'
+
+
 
 const SocketContext = createContext();
 
@@ -14,10 +36,48 @@ const ContextProvider = ({ children }) => {
   const [name, setName] = useState('');
   const [call, setCall] = useState({});
   const [me, setMe] = useState('');
+  const [page, setPage] = useState('');
+  const [isAuth, setIsAuth] = useState('');
+  const [user, setUser] = useState('');
 
   const myVideo = useRef();
   const userVideo = useRef();
   const connectionRef = useRef();
+
+  useEffect(() => {
+    // Firebase Authentication
+    const unsubscribeAuthentication = () => onAuthStateChanged(getAuth(), (user) => {
+      console.log('#user :>> ', user);
+      if(user){
+        const userObj = {
+          uid: user.uid,
+          name: user.displayName || "Anonymous",
+          email: user.email,
+          isAnonymous: user.isAnonymous,
+          profile_picture : ""
+        }
+        addChatUser(user)
+        setName(user.displayName || "Anonymous")
+        setIsAuth(true)
+        setUser(userObj)
+        setPage('home')
+        // setTimeout(() => signOutFn(), 3000)
+      }else{
+        // signInWithEmailAndPasswordFn('shaponpal4@gmail.com', 12345678).catch(function (error){
+        //   console.log('error :>> ', error);
+        // })
+        // signInAnonymouslyFn().then((res) =>{
+        //   console.log('res2 :>> ', res);
+        // })
+        setIsAuth(false)
+        setUser(null)
+        setPage('auth')
+      }
+    })
+    unsubscribeAuthentication()
+
+    return () => {unsubscribeAuthentication();}
+  }, []);
 
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -34,6 +94,11 @@ const ContextProvider = ({ children }) => {
     });
   }, []);
 
+  const createUserWithEmailAndPassword = (email, password) => createUserWithEmailAndPasswordFn(email, password);
+  const signInWithEmailAndPassword = (email, password) => signInWithEmailAndPasswordFn(email, password);
+  const signInAnonymously = () => signInAnonymouslyFn();
+  const signOut = () => signOutFn();
+  
   const answerCall = () => {
     setCallAccepted(true);
 
@@ -82,6 +147,10 @@ const ContextProvider = ({ children }) => {
 
   return (
     <SocketContext.Provider value={{
+      page,
+      setPage,
+      isAuth,
+      user,
       call,
       callAccepted,
       myVideo,
@@ -94,6 +163,10 @@ const ContextProvider = ({ children }) => {
       callUser,
       leaveCall,
       answerCall,
+      signInAnonymously, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword,
+      signOut,
     }}
     >
       {children}
